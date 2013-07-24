@@ -46,12 +46,12 @@ namespace MMSarbianExt
                     string pattern = splits[1];
 
                     // it's a modification node and it's not one Modulemanager will process
-                    if (pattern.Contains("*") || pattern.Contains("?") || (splits.Length > 2 && splits[2].Contains("Has") && !splits[2].Contains("Final")))
+                    if (pattern.Contains("*") || pattern.Contains("?") || (splits.Length > 2 && splits[2].Contains("HAS") && !splits[2].Contains("Final")))
                     {
                         String cond = "";
                         if (splits.Length > 2 && splits[2].Length > 5) 
                         {
-                            int start = splits[2].IndexOf("Has[") + 4;
+                            int start = splits[2].IndexOf("HAS[") + 4;
                             cond = splits[2].Substring(start, splits[2].LastIndexOf(']') - start);
                         }
                         foreach (UrlDir.UrlConfig url in GameDatabase.Instance.root.AllConfigs)
@@ -71,7 +71,6 @@ namespace MMSarbianExt
             loaded = true;
         }
 
-
         // Split condiction while not getting lost in embeded brackets
         public List<string> SplitCondition(string cond)
         {
@@ -83,7 +82,7 @@ namespace MMSarbianExt
             {
                 if (cond[end] == ',' && level == 0)
                 {
-                    conds.Add(cond.Substring(start, end-start));
+                    conds.Add(cond.Substring(start, end-start).Trim());
                     start = end + 1;
                 }
                 else if (cond[end] == '[') level++;
@@ -98,15 +97,14 @@ namespace MMSarbianExt
             {
                 List<string> condsList = SplitCondition(conds);
 
-                // @MODULE[ModuleAlternator] or @MODULE[ModuleAlternator]:HAS(...)
                 if (condsList.Count == 1)
                 {
                     conds = condsList[0];
 
                     string remainCond = "";
-                    if (conds.Contains("Has["))
+                    if (conds.Contains("HAS["))
                     {
-                        int start = conds.IndexOf("Has[") + 4;
+                        int start = conds.IndexOf("HAS[") + 4;
                         remainCond = conds.Substring(start, condsList[0].LastIndexOf(']') - start);
                         conds = conds.Substring(0, start - 5);
                     }
@@ -114,11 +112,24 @@ namespace MMSarbianExt
                     string type = conds.Substring(1).Split('[')[0].Trim();
                     string name = conds.Split('[')[1].Replace("]", "").Trim();
 
-                    ConfigNode subNode = ConfigManager.FindConfigNodeIn(node, type, name);
-                    if (subNode != null)
-                        return CheckCondition(subNode, remainCond);
+                    if (conds[0] == '@' || conds[0] == '!')  // @MODULE[ModuleAlternator] or !MODULE[ModuleAlternator]
+                    {
+                        bool not = (conds[0] == '!');
+                        ConfigNode subNode = ConfigManager.FindConfigNodeIn(node, type, name);
+                        if (subNode != null)
+                            return not ^ CheckCondition(subNode, remainCond);
+                        else
+                            return not ^ false;
+                    }
+                    else if (conds[0] == '#') // #module[Winglet]
+                    {
+                        if (node.HasValue(type) && node.GetValue(type).Equals(name))
+                            return CheckCondition(node, remainCond);
+                        else
+                            return false;
+                    }
                     else
-                        return false;
+                        return false; // Syntax error
                 }
                 else  // Multiple condition
                 {
@@ -127,8 +138,8 @@ namespace MMSarbianExt
                         if (!CheckCondition(node, cond))
                             return false;
                     }
+                    return true;
                 }
-                return true;
             }
             else
                 return true;
