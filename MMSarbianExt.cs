@@ -42,30 +42,28 @@ namespace MMSarbianExt
                 if (mod.type[0] == '@')
                 {
                     char[] sep = new char[] { '[', ']' };
-                    string[] splits = mod.name.Split(sep,3);
+                    string[] splits = mod.name.Split(sep, 3);
                     string pattern = splits[1];
+                    string type = splits[0].Substring(1);
 
                     // it's a modification node and it's not one Modulemanager will process
-                    if (pattern.Contains("*") || pattern.Contains("?") || (splits.Length > 2 && splits[2].Contains("HAS") && !splits[2].Contains("Final")))
+                    if (pattern.Contains("*") || pattern.Contains("?") || (splits.Length > 2 && splits[2].Contains(":HAS") && !splits[2].Contains(":Final")))
                     {
                         String cond = "";
-                        if (splits.Length > 2 && splits[2].Length > 5) 
+                        if (splits.Length > 2 && splits[2].Length > 5)
                         {
                             int start = splits[2].IndexOf("HAS[") + 4;
                             cond = splits[2].Substring(start, splits[2].LastIndexOf(']') - start);
                         }
                         foreach (UrlDir.UrlConfig url in GameDatabase.Instance.root.AllConfigs)
                         {
-                            if (url.name[0] != '@' && WildcardMatch(url.name, pattern) && CheckCondition(url.config, cond))
+                            if (url.type == type && WildcardMatch(url.name, pattern) && CheckCondition(url.config, cond))
                             {
-                                print("Applying node " + mod.url + " to " + url.url);
+                                print("[ModuleManager] Applying node " + mod.url + " to " + url.url);
                                 url.config = ConfigManager.ModifyNode(url.config, mod.config);
                             }
                         }
                     }
-                    
-                    // TODO : :Final nodes
-
                 }
             }
             loaded = true;
@@ -124,6 +122,14 @@ namespace MMSarbianExt
                     else if (conds[0] == '#') // #module[Winglet]
                     {
                         if (node.HasValue(type) && node.GetValue(type).Equals(name))
+                            return CheckCondition(node, remainCond);
+                        else
+                            return false;
+                    }
+                    else if (conds[0] == '~') // ~breakingForce[]  breakingForce is not present
+                    {
+                        if (!(node.HasValue(type)))
+
                             return CheckCondition(node, remainCond);
                         else
                             return false;
